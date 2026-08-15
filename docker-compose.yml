@@ -1,0 +1,13 @@
+services:
+  monitor:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - monitor_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  monitor_data:
