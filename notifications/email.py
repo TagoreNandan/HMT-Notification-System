@@ -21,7 +21,9 @@ class EmailNotificationChannel(NotificationChannel):
     def __init__(self, destination: str) -> None:
         self.destination = destination
 
-    def send(self, product: Product, snapshot: Snapshot, changes: list[DetectedChange]) -> None:
+    def send(
+        self, product: Product, snapshot: Snapshot, changes: list[DetectedChange]
+    ) -> None:
         settings = get_settings()
         if not settings.resend_api_key:
             logger.error(

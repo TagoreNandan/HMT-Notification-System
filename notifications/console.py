@@ -8,7 +8,9 @@ logger = logging.getLogger(__name__)
 
 
 class ConsoleNotificationChannel(NotificationChannel):
-    def send(self, product: Product, snapshot: Snapshot, changes: list[DetectedChange]) -> None:
+    def send(
+        self, product: Product, snapshot: Snapshot, changes: list[DetectedChange]
+    ) -> None:
         actionable = [c for c in changes if c.change_type != ChangeType.NO_CHANGE]
         if not actionable:
             logger.info(

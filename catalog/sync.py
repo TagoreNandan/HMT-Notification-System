@@ -16,7 +16,7 @@ class CatalogSyncService:
 
     def sync(self, db: Session) -> dict[str, int]:
         discovered = self.catalog.fetch_catalog()
-        seen_titles: set[str] = set()
+        seen_urls: set[str] = set()
 
         stats = {
             "new": 0,
@@ -26,14 +26,17 @@ class CatalogSyncService:
 
         for product in discovered:
             # Skip duplicate watch titles
-            if product.title in seen_titles:
+            if product.url in seen_urls:
                 continue
 
-            seen_titles.add(product.title)
+            seen_urls.add(product.url)
 
             existing = (
                 db.query(CatalogProduct)
-                .filter(CatalogProduct.title == product.title)
+                .filter(
+                    CatalogProduct.site_name == product.source,
+                    CatalogProduct.url == product.url,
+                )
                 .one_or_none()
             )
 
@@ -41,9 +44,9 @@ class CatalogSyncService:
                 db.add(
                     CatalogProduct(
                         url=product.url,
-                        site_name="HMT",
+                        site_name=product.source,
                         title=product.title,
-                        price=product.price,
+                        price=float(product.price) if product.price else None,
                         in_stock=product.in_stock,
                     )
                 )

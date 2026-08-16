@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 router = APIRouter(prefix="/watchlist", tags=["watchlist"])
 
 
-USER_ID = 7      # temporary until auth is connected
+USER_ID = 7  # temporary until auth is connected
 
 
 @router.get("")
@@ -31,6 +31,7 @@ def my_watchlist(db: Session = Depends(get_db)):
         }
         for p in rows
     ]
+
 
 @router.post("/{catalog_product_id}")
 def add_watch(
@@ -82,4 +83,3 @@ def remove_watch(
     db.commit()
 
     return {"message": "Removed"}
-

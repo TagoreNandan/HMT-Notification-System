@@ -37,7 +37,9 @@ def dispatch_product_changes(
     snapshot: Snapshot,
     changes: list[DetectedChange],
 ) -> None:
-    actionable = [change for change in changes if change.change_type != ChangeType.NO_CHANGE]
+    actionable = [
+        change for change in changes if change.change_type != ChangeType.NO_CHANGE
+    ]
 
     preferences = (
         db.query(NotificationPreference)

@@ -29,7 +29,9 @@ def actionable_changes() -> list[DetectedChange]:
     ]
 
 
-def _seed_email_preference(db_session, verified: bool = False) -> tuple[User, Product, Snapshot, NotificationPreference]:
+def _seed_email_preference(
+    db_session, verified: bool = False
+) -> tuple[User, Product, Snapshot, NotificationPreference]:
     user = User(email="verify@example.com", hashed_password="hashed")
     db_session.add(user)
     db_session.commit()
@@ -69,7 +71,9 @@ def _seed_email_preference(db_session, verified: bool = False) -> tuple[User, Pr
 
 
 @patch("notifications.email.requests.post")
-def test_dispatcher_skips_unverified_email(mock_post, db_session, actionable_changes) -> None:
+def test_dispatcher_skips_unverified_email(
+    mock_post, db_session, actionable_changes
+) -> None:
     _, product, snapshot, _ = _seed_email_preference(db_session, verified=False)
 
     with patch("notifications.email.get_settings") as mock_settings:
@@ -83,7 +87,9 @@ def test_dispatcher_skips_unverified_email(mock_post, db_session, actionable_cha
 
 
 @patch("notifications.email.requests.post")
-def test_dispatcher_sends_verified_email(mock_post, db_session, actionable_changes) -> None:
+def test_dispatcher_sends_verified_email(
+    mock_post, db_session, actionable_changes
+) -> None:
     mock_post.return_value = MagicMock(status_code=200, raise_for_status=lambda: None)
     _, product, snapshot, _ = _seed_email_preference(db_session, verified=True)
 
@@ -166,7 +172,9 @@ def test_verify_endpoint_rejects_expired_token(client, db_session) -> None:
 
 @patch("api.routes.get_adapter_for_url")
 @patch("scheduler.jobs.get_adapter_for_url")
-def test_product_limit_blocks_creation(mock_jobs_adapter, mock_api_adapter, client, monkeypatch) -> None:
+def test_product_limit_blocks_creation(
+    mock_jobs_adapter, mock_api_adapter, client, monkeypatch
+) -> None:
     from adapters.base import ProductSnapshot
 
     monkeypatch.setenv("MAX_PRODUCTS_PER_USER", "2")

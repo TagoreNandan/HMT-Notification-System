@@ -5,6 +5,7 @@ from services.watchlist_service import WatchlistService
 
 print("LOADED notification_service.py")
 
+
 class NotificationService:
     def __init__(self, watchlists: WatchlistService):
         self.watchlists = watchlists
@@ -58,5 +59,3 @@ class NotificationService:
 
         elif preference.channel_type == ChannelType.CONSOLE:
             pass
-
-

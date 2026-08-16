@@ -13,7 +13,9 @@ logger = logging.getLogger(__name__)
 RESEND_API_URL = "https://api.resend.com/emails"
 
 
-def create_verification_token(db: Session, preference: NotificationPreference) -> VerificationToken:
+def create_verification_token(
+    db: Session, preference: NotificationPreference
+) -> VerificationToken:
     settings = get_settings()
     for existing in list(preference.verification_tokens):
         db.delete(existing)
@@ -30,7 +32,9 @@ def create_verification_token(db: Session, preference: NotificationPreference) -
     return token
 
 
-def send_verification_email(preference: NotificationPreference, token: VerificationToken) -> None:
+def send_verification_email(
+    preference: NotificationPreference, token: VerificationToken
+) -> None:
     settings = get_settings()
     if not settings.resend_api_key or not settings.resend_from_email:
         logger.warning(
@@ -39,9 +43,7 @@ def send_verification_email(preference: NotificationPreference, token: Verificat
         )
         return
 
-    verify_url = (
-        f"{settings.base_url.rstrip('/')}/notification-preferences/verify?token={token.token}"
-    )
+    verify_url = f"{settings.base_url.rstrip('/')}/notification-preferences/verify?token={token.token}"
     payload = {
         "from": settings.resend_from_email,
         "to": [preference.destination],

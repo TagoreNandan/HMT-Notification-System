@@ -66,7 +66,6 @@ class HealthResponse(BaseModel):
     app: str
 
 
-
 @router.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     from config import get_settings
@@ -89,7 +88,9 @@ def create_product(
     try:
         adapter = get_adapter_for_url(url)
     except UnsupportedSiteError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
 
     existing = (
         db.query(Product)
@@ -103,9 +104,7 @@ def create_product(
         )
 
     settings = get_settings()
-    product_count = (
-        db.query(Product).filter(Product.user_id == current_user.id).count()
-    )
+    product_count = db.query(Product).filter(Product.user_id == current_user.id).count()
     if product_count >= settings.max_products_per_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -160,9 +159,9 @@ def delete_product(
 
     if product is None:
         raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Product not found",
-    )
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found",
+        )
     db.delete(product)
     db.commit()
 

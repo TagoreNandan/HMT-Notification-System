@@ -103,9 +103,7 @@ class NotificationPreference(Base):
         default=utcnow,
     )
 
-    user: Mapped["User"] = relationship(
-        back_populates="notification_preferences"
-    )
+    user: Mapped["User"] = relationship(back_populates="notification_preferences")
 
     verification_tokens: Mapped[list["VerificationToken"]] = relationship(
         back_populates="preference",
@@ -177,7 +175,6 @@ class Product(Base):
     title: Mapped[str | None] = mapped_column(
         String(512),
         nullable=False,
-        unique=True,
         index=True,
     )
 
@@ -198,9 +195,7 @@ class Product(Base):
         onupdate=utcnow,
     )
 
-    user: Mapped["User"] = relationship(
-        back_populates="products"
-    )
+    user: Mapped["User"] = relationship(back_populates="products")
 
     snapshots: Mapped[list["Snapshot"]] = relationship(
         back_populates="product",
@@ -252,13 +247,9 @@ class Snapshot(Base):
         index=True,
     )
 
-    product: Mapped["Product"] = relationship(
-        back_populates="snapshots"
-    )
+    product: Mapped["Product"] = relationship(back_populates="snapshots")
 
-    change_events: Mapped[list["ChangeEvent"]] = relationship(
-        back_populates="snapshot"
-    )
+    change_events: Mapped[list["ChangeEvent"]] = relationship(back_populates="snapshot")
 
 
 class ChangeEvent(Base):
@@ -303,14 +294,9 @@ class ChangeEvent(Base):
         index=True,
     )
 
-    product: Mapped["Product"] = relationship(
-        back_populates="change_events"
-    )
+    product: Mapped["Product"] = relationship(back_populates="change_events")
 
-    snapshot: Mapped["Snapshot"] = relationship(
-        back_populates="change_events"
-    )
-
+    snapshot: Mapped["Snapshot"] = relationship(back_populates="change_events")
 
 
 class WatchlistItem(Base):
@@ -345,18 +331,15 @@ class WatchlistItem(Base):
         default=utcnow,
     )
 
-    user: Mapped["User"] = relationship(
-        back_populates="watchlist_items"
-    )
+    user: Mapped["User"] = relationship(back_populates="watchlist_items")
 
-    product: Mapped["CatalogProduct"] = relationship(
-        back_populates="watchlist_items"
-    )
+    product: Mapped["CatalogProduct"] = relationship(back_populates="watchlist_items")
 
 
 # --------------------------------------------------------------------
 # Global HMT catalog (new)
 # --------------------------------------------------------------------
+
 
 class CatalogProduct(Base):
     __tablename__ = "catalog_products"

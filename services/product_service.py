@@ -12,11 +12,7 @@ class ProductService:
         self.db = db
 
     def get_product(self, product_id: int) -> Product | None:
-        return (
-            self.db.query(Product)
-            .filter(Product.id == product_id)
-            .one_or_none()
-        )
+        return self.db.query(Product).filter(Product.id == product_id).one_or_none()
 
     def get_user_product(self, product_id: int, user_id: int) -> Product | None:
         """

@@ -23,7 +23,9 @@ def test_health(mock_jobs_adapter, mock_api_adapter, client) -> None:
 
 @patch("api.routes.get_adapter_for_url")
 @patch("scheduler.jobs.get_adapter_for_url")
-def test_create_list_delete_product(mock_jobs_adapter, mock_api_adapter, client) -> None:
+def test_create_list_delete_product(
+    mock_jobs_adapter, mock_api_adapter, client
+) -> None:
     mock_adapter = mock_api_adapter.return_value
     mock_adapter.site_name = "hmt"
     mock_adapter.fetch_product.return_value = MOCK_SNAPSHOT

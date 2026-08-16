@@ -37,7 +37,9 @@ def start_scheduler() -> BackgroundScheduler:
         max_instances=1,
     )
     _scheduler.start()
-    logger.info("Scheduler started; polling every %s seconds", settings.poll_interval_seconds)
+    logger.info(
+        "Scheduler started; polling every %s seconds", settings.poll_interval_seconds
+    )
     return _scheduler
 
 

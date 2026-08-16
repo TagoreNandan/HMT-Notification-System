@@ -11,7 +11,6 @@ from services.notification_service import NotificationService
 
 
 class MonitorService:
-
     def __init__(self):
         self.catalog = CatalogService()
 

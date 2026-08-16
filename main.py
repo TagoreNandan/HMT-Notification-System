@@ -32,7 +32,9 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     settings = get_settings()
     logger.info("Starting %s", settings.app_name)
-    logger.info("Database URL scheme: %s", settings.sqlalchemy_database_url.split(":", 1)[0])
+    logger.info(
+        "Database URL scheme: %s", settings.sqlalchemy_database_url.split(":", 1)[0]
+    )
     init_db()
     start_scheduler()
     yield

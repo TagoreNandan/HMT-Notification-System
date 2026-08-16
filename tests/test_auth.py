@@ -27,7 +27,10 @@ def test_signup_duplicate_email_fails(client) -> None:
 
 
 def test_login_wrong_password_fails(client) -> None:
-    client.post("/auth/signup", json={"email": "loginuser@example.com", "password": "password123"})
+    client.post(
+        "/auth/signup",
+        json={"email": "loginuser@example.com", "password": "password123"},
+    )
     response = client.post(
         "/auth/login",
         json={"email": "loginuser@example.com", "password": "wrong-password"},
@@ -36,7 +39,10 @@ def test_login_wrong_password_fails(client) -> None:
 
 
 def test_login_success_returns_token(client) -> None:
-    client.post("/auth/signup", json={"email": "validlogin@example.com", "password": "password123"})
+    client.post(
+        "/auth/signup",
+        json={"email": "validlogin@example.com", "password": "password123"},
+    )
     response = client.post(
         "/auth/login",
         json={"email": "validlogin@example.com", "password": "password123"},
@@ -52,14 +58,18 @@ def test_products_without_token_fails(client) -> None:
 
 @patch("api.routes.get_adapter_for_url")
 @patch("scheduler.jobs.get_adapter_for_url")
-def test_user_cannot_access_another_users_product(mock_jobs_adapter, mock_api_adapter, client) -> None:
+def test_user_cannot_access_another_users_product(
+    mock_jobs_adapter, mock_api_adapter, client
+) -> None:
     mock_adapter = mock_api_adapter.return_value
     mock_adapter.site_name = "hmt"
     mock_adapter.fetch_product.return_value = MOCK_SNAPSHOT
     mock_jobs_adapter.return_value = mock_adapter
 
     owner_headers = auth_headers(client, email="owner@example.com")
-    create_resp = client.post("/products", json={"url": SAMPLE_URL}, headers=owner_headers)
+    create_resp = client.post(
+        "/products", json={"url": SAMPLE_URL}, headers=owner_headers
+    )
     product_id = create_resp.json()["id"]
 
     other_headers = auth_headers(client, email="other@example.com")
@@ -73,7 +83,9 @@ def test_user_cannot_access_another_users_product(mock_jobs_adapter, mock_api_ad
 
 @patch("api.routes.get_adapter_for_url")
 @patch("scheduler.jobs.get_adapter_for_url")
-def test_user_only_sees_own_products(mock_jobs_adapter, mock_api_adapter, client) -> None:
+def test_user_only_sees_own_products(
+    mock_jobs_adapter, mock_api_adapter, client
+) -> None:
     mock_adapter = mock_api_adapter.return_value
     mock_adapter.site_name = "hmt"
     mock_adapter.fetch_product.return_value = MOCK_SNAPSHOT

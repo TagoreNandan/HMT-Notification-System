@@ -20,7 +20,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(user_id: int) -> str:
     settings = get_settings()
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.jwt_access_token_expire_days)
+    expire = datetime.now(timezone.utc) + timedelta(
+        days=settings.jwt_access_token_expire_days
+    )
     payload = {"sub": str(user_id), "exp": expire}
     return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
 

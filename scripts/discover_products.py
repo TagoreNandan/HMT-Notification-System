@@ -5,11 +5,17 @@ from backend.discovery.registry import get_sources
 
 
 async def main():
+
     service = DiscoveryService(get_sources())
 
     products = await service.discover()
 
-    print(f"\nDiscovered {len(products)} products")
+    print()
+
+    print(f"Discovered {len(products)} products")
+
+    for p in products[:10]:
+        print(p.title)
 
 
 if __name__ == "__main__":

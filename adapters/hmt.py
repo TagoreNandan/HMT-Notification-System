@@ -1,12 +1,9 @@
 import re
 from urllib.parse import urlparse
 
-import requests
 from bs4 import BeautifulSoup
 
 from adapters.base import ProductSnapshot, SiteAdapter
-from config import get_settings
-from playwright.sync_api import sync_playwright
 
 
 class HMTAdapter(SiteAdapter):
@@ -64,7 +61,9 @@ class HMTAdapter(SiteAdapter):
         return float(match.group(1))
 
     @staticmethod
-    def _parse_stock(soup: BeautifulSoup, html: str) -> tuple[bool, dict[str, str | int | None]]:
+    def _parse_stock(
+        soup: BeautifulSoup, html: str
+    ) -> tuple[bool, dict[str, str | int | None]]:
         raw: dict[str, str | int | None] = {}
 
         cart_input = soup.select_one("input#is_add_to_cart")
@@ -81,7 +80,9 @@ class HMTAdapter(SiteAdapter):
         prod_in_stock = prod_in_stock_match.group(1) if prod_in_stock_match else None
         raw["prodInStock"] = prod_in_stock
 
-        prod_qty_match = re.search(r'prodQty\s*=\s*(?:parseInt\()?["\']?(\d+)["\']?\)?', html)
+        prod_qty_match = re.search(
+            r'prodQty\s*=\s*(?:parseInt\()?["\']?(\d+)["\']?\)?', html
+        )
         prod_qty = int(prod_qty_match.group(1)) if prod_qty_match else None
         raw["prodQty"] = prod_qty
 

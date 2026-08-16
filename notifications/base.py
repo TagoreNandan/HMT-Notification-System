@@ -6,5 +6,6 @@ from db.models import Product, Snapshot
 
 class NotificationChannel(ABC):
     @abstractmethod
-    def send(self, product: Product, snapshot: Snapshot, changes: list[DetectedChange]) -> None:
-        ...
+    def send(
+        self, product: Product, snapshot: Snapshot, changes: list[DetectedChange]
+    ) -> None: ...

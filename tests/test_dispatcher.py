@@ -96,9 +96,7 @@ def test_dispatcher_sends_email_via_resend(
 
 
 @patch("notifications.ntfy.requests.post")
-def test_dispatcher_sends_ntfy(
-    mock_post, db_session, actionable_changes
-) -> None:
+def test_dispatcher_sends_ntfy(mock_post, db_session, actionable_changes) -> None:
     mock_post.return_value = MagicMock(status_code=200, raise_for_status=lambda: None)
 
     user = _make_user(db_session)
@@ -146,7 +144,9 @@ def test_dispatcher_falls_back_to_console_without_preferences(
 def test_dispatcher_email_missing_api_key_does_not_break_ntfy(
     mock_email_post, mock_ntfy_post, db_session, actionable_changes
 ) -> None:
-    mock_ntfy_post.return_value = MagicMock(status_code=200, raise_for_status=lambda: None)
+    mock_ntfy_post.return_value = MagicMock(
+        status_code=200, raise_for_status=lambda: None
+    )
 
     user = _make_user(db_session)
     product = _make_product(db_session, user)

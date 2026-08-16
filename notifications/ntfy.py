@@ -18,7 +18,9 @@ class NtfyNotificationChannel(NotificationChannel):
     def __init__(self, destination: str) -> None:
         self.destination = destination
 
-    def send(self, product: Product, snapshot: Snapshot, changes: list[DetectedChange]) -> None:
+    def send(
+        self, product: Product, snapshot: Snapshot, changes: list[DetectedChange]
+    ) -> None:
         settings = get_settings()
         url = f"https://ntfy.sh/{self.destination}"
         headers = {

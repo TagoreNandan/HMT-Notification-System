@@ -49,8 +49,7 @@ def format_plain_text(
 
     for change in changes:
         lines.append(
-            f" • {_change_label(change)}: "
-            f"{change.old_value} → {change.new_value}"
+            f" • {_change_label(change)}: {change.old_value} → {change.new_value}"
         )
 
     lines.extend(
@@ -70,8 +69,7 @@ def format_html(
     changes: list[DetectedChange],
 ) -> str:
     rows = "".join(
-        f"<li><b>{c.change_type.value}</b>: "
-        f"{c.old_value} → {c.new_value}</li>"
+        f"<li><b>{c.change_type.value}</b>: {c.old_value} → {c.new_value}</li>"
         for c in changes
     )
 
@@ -124,8 +122,7 @@ def format_whatsapp(
 
     for change in changes:
         message.append(
-            f"• {_change_label(change)}: "
-            f"{change.old_value} → {change.new_value}"
+            f"• {_change_label(change)}: {change.old_value} → {change.new_value}"
         )
 
     message.extend(

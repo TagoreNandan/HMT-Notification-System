@@ -1,4 +1,3 @@
-
 from tests.conftest import auth_headers
 
 
@@ -59,8 +58,12 @@ def test_users_only_see_own_notification_preferences(client) -> None:
         headers=user_b_headers,
     )
 
-    user_a_prefs = client.get("/notification-preferences", headers=user_a_headers).json()
-    user_b_prefs = client.get("/notification-preferences", headers=user_b_headers).json()
+    user_a_prefs = client.get(
+        "/notification-preferences", headers=user_a_headers
+    ).json()
+    user_b_prefs = client.get(
+        "/notification-preferences", headers=user_b_headers
+    ).json()
 
     assert len(user_a_prefs) == 1
     assert user_a_prefs[0]["destination"] == "a@example.com"

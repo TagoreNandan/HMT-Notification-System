@@ -35,9 +35,13 @@ class UserResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-@router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED
+)
 @limiter.limit(signup_rate_limit)
-def signup(request: Request, payload: SignupRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def signup(
+    request: Request, payload: SignupRequest, db: Session = Depends(get_db)
+) -> TokenResponse:
     email = payload.email.lower()
     existing = db.query(User).filter(User.email == email).one_or_none()
     if existing:

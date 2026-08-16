@@ -5,9 +5,16 @@ from pydantic import BaseModel, EmailStr, TypeAdapter, field_validator, model_va
 from sqlalchemy.orm import Session
 
 from api.deps import get_current_user, get_db
-from api.rate_limit import get_notification_preference_key, limiter, notification_preference_rate_limit
+from api.rate_limit import (
+    get_notification_preference_key,
+    limiter,
+    notification_preference_rate_limit,
+)
 from db.models import ChannelType, NotificationPreference, User, VerificationToken
-from notifications.verification import create_verification_token, send_verification_email
+from notifications.verification import (
+    create_verification_token,
+    send_verification_email,
+)
 
 router = APIRouter(tags=["notification-preferences"])
 
@@ -22,12 +29,17 @@ class NotificationPreferenceCreateRequest(BaseModel):
     @classmethod
     def validate_supported_channel(cls, value: ChannelType) -> ChannelType:
         if value == ChannelType.CONSOLE:
-            raise ValueError("Console is a fallback channel and cannot be configured via API")
+            raise ValueError(
+                "Console is a fallback channel and cannot be configured via API"
+            )
         return value
 
     @model_validator(mode="after")
     def validate_destination_for_channel(self) -> "NotificationPreferenceCreateRequest":
-        if self.channel_type in {ChannelType.EMAIL, ChannelType.NTFY} and not self.destination:
+        if (
+            self.channel_type in {ChannelType.EMAIL, ChannelType.NTFY}
+            and not self.destination
+        ):
             raise ValueError("destination is required for email and ntfy channels")
 
         if self.channel_type == ChannelType.EMAIL and self.destination:
@@ -64,7 +76,9 @@ class VerificationResponse(BaseModel):
     response_model=NotificationPreferenceResponse,
     status_code=status.HTTP_201_CREATED,
 )
-@limiter.limit(notification_preference_rate_limit, key_func=get_notification_preference_key)
+@limiter.limit(
+    notification_preference_rate_limit, key_func=get_notification_preference_key
+)
 def create_notification_preference(
     request: Request,
     payload: NotificationPreferenceCreateRequest,
@@ -103,7 +117,9 @@ def create_notification_preference(
     return preference
 
 
-@router.get("/notification-preferences", response_model=list[NotificationPreferenceResponse])
+@router.get(
+    "/notification-preferences", response_model=list[NotificationPreferenceResponse]
+)
 def list_notification_preferences(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -156,7 +172,9 @@ def verify_notification_preference(
     )
 
 
-@router.delete("/notification-preferences/{preference_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/notification-preferences/{preference_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 def delete_notification_preference(
     preference_id: int,
     db: Session = Depends(get_db),
@@ -171,6 +189,8 @@ def delete_notification_preference(
         .one_or_none()
     )
     if preference is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Preference not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Preference not found"
+        )
     db.delete(preference)
     db.commit()

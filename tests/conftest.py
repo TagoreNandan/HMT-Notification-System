@@ -75,7 +75,9 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
     app.dependency_overrides.clear()
 
 
-def auth_headers(client: TestClient, email: str = "user@example.com", password: str = "password123") -> dict[str, str]:
+def auth_headers(
+    client: TestClient, email: str = "user@example.com", password: str = "password123"
+) -> dict[str, str]:
     response = client.post("/auth/signup", json={"email": email, "password": password})
     assert response.status_code == 201, response.text
     token = response.json()["access_token"]

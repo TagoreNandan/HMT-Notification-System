@@ -79,6 +79,8 @@ def poll_all_products(db: Session) -> int:
             poll_product(db, product)
             polled += 1
         except Exception:
-            logger.exception("Failed to poll product id=%s url=%s", product.id, product.url)
+            logger.exception(
+                "Failed to poll product id=%s url=%s", product.id, product.url
+            )
             db.rollback()
     return polled
