@@ -1,12 +1,15 @@
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from adapters.base import ProductSnapshot
+from events.models import NotificationEvent
 
 
 class ChangeType(str, Enum):
+    NEW_MODEL = "new_model"
     PRICE_CHANGE = "price_change"
     BACK_IN_STOCK = "back_in_stock"
     OUT_OF_STOCK = "out_of_stock"
@@ -26,8 +29,9 @@ def detect_changes(
     if previous is None:
         return [
             DetectedChange(
-                change_type=ChangeType.NO_CHANGE,
-                details={"reason": "initial_snapshot"},
+                change_type=ChangeType.NEW_MODEL,
+                new_value=current.title,
+                details={"reason": "new_model"},
             )
         ]
 
@@ -67,3 +71,40 @@ def detect_changes(
         changes.append(DetectedChange(change_type=ChangeType.NO_CHANGE))
 
     return changes
+
+
+def create_notification_event(
+    change: DetectedChange,
+    product_id: int | str,
+    title: str,
+    price: float | None,
+    in_stock: bool,
+    url: str,
+    site_name: str,
+    occurred_at: datetime | None = None,
+    image_url: str | None = None,
+    collection: str | None = None,
+    snapshot_id: int | str | None = None,
+) -> NotificationEvent:
+    if occurred_at is None:
+        occurred_at = datetime.now(timezone.utc)
+
+    snap_part = f"_snap_{snapshot_id}" if snapshot_id is not None else ""
+    event_id = f"evt_p{product_id}{snap_part}_{change.change_type.value}"
+
+    return NotificationEvent(
+        event_id=event_id,
+        event_type=change.change_type.value,
+        product_id=product_id,
+        title=title,
+        price=price,
+        in_stock=in_stock,
+        url=url,
+        site_name=site_name,
+        occurred_at=occurred_at,
+        image_url=image_url,
+        collection=collection,
+        old_value=change.old_value,
+        new_value=change.new_value,
+        details=change.details,
+    )

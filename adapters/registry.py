@@ -15,11 +15,11 @@ def get_adapter_for_url(url: str) -> SiteAdapter:
     parsed = urlparse(url)
     domain = parsed.netloc.lower()
 
-    if domain.endswith("hmtwatches.in"):
+    if domain.endswith("hmtwatches.in") or domain.endswith("hmtwatches.store"):
         adapter = HMTAdapter()
         if not adapter.is_supported_url(url):
             raise UnsupportedSiteError(
-                "HMT URLs must be product_overview pages with an id query parameter"
+                "HMT URLs must be valid product overview/detail pages on hmtwatches.in or hmtwatches.store"
             )
         return adapter
 

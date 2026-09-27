@@ -8,6 +8,7 @@ from adapters.registry import get_adapter_for_url
 from core.change_detection import ChangeType, detect_changes
 from db.models import ChangeEvent, Product, Snapshot
 from notifications.dispatcher import dispatch_product_changes
+from services.polling_pipeline import PollingPipeline
 
 logger = logging.getLogger(__name__)
 
@@ -72,15 +73,7 @@ def poll_product(db: Session, product: Product) -> Snapshot:
 
 
 def poll_all_products(db: Session) -> int:
-    products = db.query(Product).filter(Product.is_active.is_(True)).all()
-    polled = 0
-    for product in products:
-        try:
-            poll_product(db, product)
-            polled += 1
-        except Exception:
-            logger.exception(
-                "Failed to poll product id=%s url=%s", product.id, product.url
-            )
-            db.rollback()
-    return polled
+    """Execute the 5-phase polling pipeline."""
+    pipeline = PollingPipeline(db)
+    result = pipeline.run()
+    return result["discovered_count"]

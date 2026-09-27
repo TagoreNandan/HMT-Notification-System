@@ -1,9 +1,13 @@
+import logging
 import re
 from urllib.parse import urlparse
 
+import requests
 from bs4 import BeautifulSoup
 
 from adapters.base import ProductSnapshot, SiteAdapter
+
+logger = logging.getLogger(__name__)
 
 
 class HMTAdapter(SiteAdapter):
@@ -16,13 +20,35 @@ class HMTAdapter(SiteAdapter):
     @staticmethod
     def is_supported_url(url: str) -> bool:
         parsed = urlparse(url)
-        if not parsed.netloc.endswith("hmtwatches.in"):
-            return False
-        return parsed.path.rstrip("/") == HMTAdapter.PRODUCT_PATH and bool(parsed.query)
+        netloc = parsed.netloc.lower()
+        if netloc.endswith("hmtwatches.in"):
+            return parsed.path.rstrip("/") == HMTAdapter.PRODUCT_PATH and bool(
+                parsed.query
+            )
+        if netloc.endswith("hmtwatches.store"):
+            return "/product" in parsed.path or bool(parsed.path)
+        return False
 
-    def fetch_product(self, url: str):
-        raise NotImplementedError(
-            "CatalogService should fetch the HTML using Playwright and call parse_html()."
+    def fetch_product(self, url: str) -> ProductSnapshot:
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            )
+        }
+        try:
+            resp = requests.get(url, headers=headers, timeout=10)
+            if resp.status_code == 200 and resp.text:
+                return self.parse_html(url, resp.text)
+        except Exception as exc:
+            logger.warning("HTTP fetch failed for url %s: %s", url, exc)
+
+        return ProductSnapshot(
+            url=url,
+            title="HMT Watch",
+            price=None,
+            in_stock=True,
+            raw={},
         )
 
     def parse_html(self, url: str, html: str) -> ProductSnapshot:
@@ -37,6 +63,23 @@ class HMTAdapter(SiteAdapter):
         description_el = soup.select_one("p.product-description")
         description = description_el.get_text(strip=True) if description_el else None
 
+        image_el = soup.select_one(
+            "div.img-container img, div.preview-pic img, meta[property='og:image']"
+        )
+        image_url = None
+        if image_el:
+            src = image_el.get("src") or image_el.get("content")
+            if src:
+                if src.startswith("http"):
+                    image_url = src
+                else:
+                    image_url = f"https://hmtwatches.in/{src.lstrip('/')}"
+
+        collection_el = soup.select_one(
+            ".breadcrumb li:nth-child(2), .product-collection, .category"
+        )
+        collection = collection_el.get_text(strip=True) if collection_el else None
+
         return ProductSnapshot(
             url=url,
             title=title,
@@ -44,6 +87,8 @@ class HMTAdapter(SiteAdapter):
             in_stock=in_stock,
             raw={
                 "description": description,
+                "image_url": image_url,
+                "collection": collection,
                 **stock_raw,
             },
         )
@@ -71,8 +116,8 @@ class HMTAdapter(SiteAdapter):
         is_add_to_cart: str | None = None
         if cart_input:
             value = cart_input.get("value")
-        if isinstance(value, str):
-            is_add_to_cart = value
+            if isinstance(value, str):
+                is_add_to_cart = value
 
         raw["is_add_to_cart"] = is_add_to_cart
 

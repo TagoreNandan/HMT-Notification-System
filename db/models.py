@@ -7,6 +7,7 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -152,6 +153,7 @@ class Product(Base):
             "url",
             name="uq_products_user_url",
         ),
+        Index("ix_products_is_active_user", "is_active", "user_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -212,6 +214,10 @@ class Product(Base):
 
 class Snapshot(Base):
     __tablename__ = "snapshots"
+
+    __table_args__ = (
+        Index("ix_snapshots_product_fetched", "product_id", "fetched_at"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
@@ -344,6 +350,8 @@ class WatchlistItem(Base):
 class CatalogProduct(Base):
     __tablename__ = "catalog_products"
 
+    __table_args__ = (Index("ix_catalog_products_site_url", "site_name", "url"),)
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     url: Mapped[str] = mapped_column(
@@ -387,4 +395,54 @@ class CatalogProduct(Base):
     watchlist_items: Mapped[list["WatchlistItem"]] = relationship(
         back_populates="product",
         cascade="all, delete-orphan",
+    )
+
+
+class NotificationLog(Base):
+    __tablename__ = "notification_logs"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "event_id",
+            "channel_type",
+            "destination",
+            "user_id",
+            name="uq_notification_logs_event_channel_dest_user",
+        ),
+        Index(
+            "ix_notification_logs_lookup",
+            "event_id",
+            "user_id",
+            "channel_type",
+            "destination",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    event_id: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        index=True,
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        index=True,
+    )
+
+    channel_type: Mapped[ChannelType] = mapped_column(
+        Enum(ChannelType, native_enum=False),
+        nullable=False,
+    )
+
+    destination: Mapped[str | None] = mapped_column(
+        String(512),
+        nullable=True,
+    )
+
+    sent_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
     )

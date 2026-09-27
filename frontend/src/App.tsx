@@ -1,220 +1,373 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import type { CatalogProduct, DashboardStats, StockFilter, StoreFilter, Toast } from "./types";
+import { parseCollection, parseColor, cleanStoreName } from "./utils";
+import { Navbar } from "./components/Navbar";
+import { Dashboard } from "./components/Dashboard";
+import { FilterBar } from "./components/FilterBar";
+import { ProductCard } from "./components/ProductCard";
+import { SkeletonCard } from "./components/SkeletonCard";
+import { EmptyState } from "./components/EmptyState";
+import { ToastContainer } from "./components/ToastContainer";
 
-type Product = {
-  id: number;
-  title: string;
-  url: string;
-  in_stock: boolean;
-};
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
 export default function App() {
-  const [catalog, setCatalog] = useState<Product[]>([]);
+  const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
   const [watchlist, setWatchlist] = useState<number[]>([]);
+  const [isCatalogLoading, setIsCatalogLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+
+  // Search & Filters State
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState<number | null>(null);
+  const [stockFilter, setStockFilter] = useState<StockFilter>("all");
+  const [storeFilter, setStoreFilter] = useState<StoreFilter>("all");
+  const [collectionFilter, setCollectionFilter] = useState("all");
 
-  useEffect(() => {
-    loadCatalog();
-    loadWatchlist();
-  }, []);
-
-  async function loadCatalog() {
-    const res = await fetch("http://127.0.0.1:8000/catalog");
-    setCatalog(await res.json());
-  }
-
-  async function loadWatchlist() {
-    const res = await fetch("http://127.0.0.1:8000/watchlist");
-    const data = await res.json();
-    setWatchlist(data.map((p: Product) => p.id));
-  }
-
-  async function toggle(product: Product) {
-  setLoading(product.id);
-
-  try {
-    if (watchlist.includes(product.id)) {
-      await fetch(`http://127.0.0.1:8000/watchlist/${product.id}`, {
-        method: "DELETE",
-      });
-
-      setWatchlist((prev) => prev.filter((id) => id !== product.id));
-    } else {
-      await fetch(`http://127.0.0.1:8000/watchlist/${product.id}`, {
-        method: "POST",
-      });
-
-      setWatchlist((prev) => [...prev, product.id]);
-    }
-  } catch (err) {
-    console.error(err);
-    alert("Something went wrong.");
-  } finally {
-    setLoading(null);
-  }
-}
-
-  const filtered = catalog
-  .filter((product) =>
-    product.title.toLowerCase().includes(search.toLowerCase())
-  )
-  .sort((a, b) => {
-    const aw = watchlist.includes(a.id);
-    const bw = watchlist.includes(b.id);
-
-    // watched first
-    if (aw !== bw) return aw ? -1 : 1;
-
-    // then out-of-stock first
-    if (a.in_stock !== b.in_stock) {
-      return Number(a.in_stock) - Number(b.in_stock);
-    }
-
-    // finally alphabetical
-    return a.title.localeCompare(b.title);
+  // Dashboard & Status State
+  const [statusMeta, setStatusMeta] = useState<{
+    last_catalog_sync: string | null;
+    last_poll: string | null;
+    next_poll_seconds: number;
+  }>({
+    last_catalog_sync: null,
+    last_poll: null,
+    next_poll_seconds: 900,
   });
 
+  const [nextPollCountdown, setNextPollCountdown] = useState<number>(900);
+
+  // Toast Notifications State
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const addToast = useCallback((message: string, type: Toast["type"] = "info") => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, message, type }]);
+
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3500);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Fetch Catalog Data
+  const loadCatalog = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/catalog`);
+      if (!res.ok) throw new Error("Failed to load catalog");
+      const data = await res.json();
+      setCatalog(data);
+    } catch (err) {
+      console.error(err);
+      addToast("Failed to connect to backend server", "error");
+    }
+  }, [addToast]);
+
+  // Fetch Watchlist Data
+  const loadWatchlist = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/watchlist`);
+      if (!res.ok) throw new Error("Failed to load watchlist");
+      const data = await res.json();
+      setWatchlist(data.map((p: { id: number }) => p.id));
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  // Fetch Status Metadata
+  const loadStatusMeta = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/catalog/status`);
+      if (res.ok) {
+        const meta = await res.json();
+        setStatusMeta({
+          last_catalog_sync: meta.last_catalog_sync,
+          last_poll: meta.last_poll,
+          next_poll_seconds: meta.next_poll_seconds,
+        });
+        setNextPollCountdown(meta.next_poll_seconds || 900);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  // Initial Load
+  useEffect(() => {
+    async function init() {
+      setIsCatalogLoading(true);
+      await Promise.all([loadCatalog(), loadWatchlist(), loadStatusMeta()]);
+      setIsCatalogLoading(false);
+    }
+    init();
+  }, [loadCatalog, loadWatchlist, loadStatusMeta]);
+
+  // Next Poll Countdown Timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNextPollCountdown((prev) => {
+        if (prev <= 1) {
+          loadCatalog();
+          loadStatusMeta();
+          addToast("Polling cycle completed", "info");
+          return 900;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [loadCatalog, loadStatusMeta, addToast]);
+
+  // Manual Catalog Refresh Trigger
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const res = await fetch(`${API_BASE}/catalog/sync`, { method: "POST" });
+      if (!res.ok) throw new Error("Sync failed");
+      await Promise.all([loadCatalog(), loadWatchlist(), loadStatusMeta()]);
+      addToast("Catalog synced successfully!", "success");
+    } catch (err) {
+      console.error(err);
+      addToast("Failed to refresh catalog", "error");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // One Click Watchlist Toggle (Requirement 2)
+  const handleToggleWatch = async (product: CatalogProduct) => {
+    setActionLoadingId(product.id);
+    const isCurrentlyWatched = watchlist.includes(product.id);
+
+    try {
+      if (isCurrentlyWatched) {
+        const res = await fetch(`${API_BASE}/watchlist/${product.id}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) throw new Error("Failed to remove watch");
+        setWatchlist((prev) => prev.filter((id) => id !== product.id));
+        addToast(`Removed "${product.title}" from watchlist`, "info");
+      } else {
+        const res = await fetch(`${API_BASE}/watchlist/${product.id}`, {
+          method: "POST",
+        });
+        if (!res.ok) throw new Error("Failed to add watch");
+        setWatchlist((prev) => [...prev, product.id]);
+        addToast(`Added "${product.title}" to watchlist!`, "success");
+      }
+    } catch (err) {
+      console.error(err);
+      addToast("Failed to update watchlist", "error");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Derive unique collections list dynamically
+  const collections = useMemo(() => {
+    const set = new Set<string>();
+    catalog.forEach((p) => {
+      set.add(parseCollection(p.title));
+    });
+    return Array.from(set).sort();
+  }, [catalog]);
+
+  // Compute Filter Stock Counts
+  const filterCounts = useMemo(() => {
+    let inStockCount = 0;
+    let outOfStockCount = 0;
+    let watchingCount = 0;
+
+    catalog.forEach((p) => {
+      if (p.in_stock) inStockCount++;
+      else outOfStockCount++;
+      if (watchlist.includes(p.id)) watchingCount++;
+    });
+
+    return {
+      all: catalog.length,
+      in_stock: inStockCount,
+      out_of_stock: outOfStockCount,
+      watching: watchingCount,
+    };
+  }, [catalog, watchlist]);
+
+  // Dashboard Stats Object
+  const dashboardStats: DashboardStats = useMemo(() => {
+    return {
+      total_watches: catalog.length,
+      in_stock: filterCounts.in_stock,
+      out_of_stock: filterCounts.out_of_stock,
+      watching: watchlist.length,
+      last_catalog_sync: statusMeta.last_catalog_sync,
+      last_poll: statusMeta.last_poll,
+      next_poll_seconds: nextPollCountdown,
+      is_monitoring: true,
+    };
+  }, [catalog.length, filterCounts, watchlist.length, statusMeta, nextPollCountdown]);
+
+  // Instant Multi-Property Search & Filter (Requirement 3 & 4)
+  const filteredProducts = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return catalog
+      .filter((p) => {
+        // Search matching
+        if (query) {
+          const col = parseCollection(p.title).toLowerCase();
+          const color = parseColor(p.title).toLowerCase();
+          const store = cleanStoreName(p.url, p.site_name).toLowerCase();
+          const title = p.title.toLowerCase();
+
+          const matchesSearch =
+            title.includes(query) ||
+            col.includes(query) ||
+            color.includes(query) ||
+            store.includes(query);
+
+          if (!matchesSearch) return false;
+        }
+
+        // Stock Filter
+        if (stockFilter === "in_stock" && !p.in_stock) return false;
+        if (stockFilter === "out_of_stock" && p.in_stock) return false;
+        if (stockFilter === "watching" && !watchlist.includes(p.id)) return false;
+
+        // Store Filter
+        if (storeFilter !== "all") {
+          const storeName = cleanStoreName(p.url, p.site_name);
+          if (storeName !== storeFilter) return false;
+        }
+
+        // Collection Filter
+        if (collectionFilter !== "all") {
+          const col = parseCollection(p.title);
+          if (col !== collectionFilter) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        // Watched items first
+        const aw = watchlist.includes(a.id);
+        const bw = watchlist.includes(b.id);
+        if (aw !== bw) return aw ? -1 : 1;
+
+        // In-stock items next
+        if (a.in_stock !== b.in_stock) {
+          return Number(b.in_stock) - Number(a.in_stock);
+        }
+
+        // Alphabetical
+        return a.title.localeCompare(b.title);
+      });
+  }, [catalog, watchlist, search, stockFilter, storeFilter, collectionFilter]);
+
+  const hasActiveFilters =
+    search !== "" ||
+    stockFilter !== "all" ||
+    storeFilter !== "all" ||
+    collectionFilter !== "all";
+
+  const handleResetFilters = useCallback(() => {
+    setSearch("");
+    setStockFilter("all");
+    setStoreFilter("all");
+    setCollectionFilter("all");
+  }, []);
+
   return (
-    <div
-      style={{
-        background: "#111827",
-        minHeight: "100vh",
-        color: "white",
-        padding: 40,
-        fontFamily: "system-ui, sans-serif",
-      }}
-    >
+    <div>
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {/* Header & Poll Status */}
+      <Navbar
+        lastPoll={dashboardStats.last_poll}
+        nextPollSeconds={nextPollCountdown}
+        isRefreshing={isRefreshing}
+        onRefresh={handleManualRefresh}
+      />
+
+      {/* Dashboard Statistics */}
+      <Dashboard stats={dashboardStats} />
+
+      {/* Instant Search & Filter Bar */}
+      <FilterBar
+        search={search}
+        onSearchChange={setSearch}
+        stockFilter={stockFilter}
+        onStockFilterChange={setStockFilter}
+        storeFilter={storeFilter}
+        onStoreFilterChange={setStoreFilter}
+        collectionFilter={collectionFilter}
+        onCollectionFilterChange={setCollectionFilter}
+        collections={collections}
+        counts={filterCounts}
+        onReset={handleResetFilters}
+        hasActiveFilters={hasActiveFilters}
+      />
+
+      {/* Products Counter / Summary */}
       <div
         style={{
-          maxWidth: 900,
-          margin: "0 auto",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "16px",
+          color: "#9ca3af",
+          fontSize: "14px",
         }}
       >
-        <h1
-          style={{
-            fontSize: 48,
-            marginBottom: 10,
-          }}
-        >
-          ⌚ HMT Watch Monitor
-        </h1>
-
-        <p
-          style={{
-            color: "#9ca3af",
-            marginBottom: 30,
-          }}
-        >
-          Get notified instantly when your favorite HMT watches are back in
-          stock.
-        </p>
-
-        <input
-          type="text"
-          placeholder="Search watches..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{
-            width: "100%",
-            padding: 14,
-            borderRadius: 10,
-            border: "1px solid #374151",
-            background: "#1f2937",
-            color: "white",
-            fontSize: 16,
-            marginBottom: 20,
-            boxSizing: "border-box",
-          }}
-        />
-
-        <p
-          style={{
-            color: "#9ca3af",
-            marginBottom: 20,
-          }}
-        >
-          Showing <strong>{filtered.length}</strong> watches • Watching{" "}
-          <strong>{watchlist.length}</strong>
-        </p>
-
-        {filtered.map((product) => (
-  <div
-    key={product.id}
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      background: "#1f2937",
-      padding: 20,
-      marginBottom: 16,
-      borderRadius: 12,
-      border: watchlist.includes(product.id)
-        ? "2px solid #16a34a"
-        : "1px solid #374151",
-    }}
-  >
-    <div>
-      <a
-        href={product.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{
-          fontSize: 20,
-          fontWeight: 700,
-          marginBottom: 10,
-          color: "white",
-          textDecoration: "none",
-          display: "inline-block",
-        }}
-      >
-        {product.title} ↗
-      </a>
-
-      <br />
-
-      <span
-        style={{
-          display: "inline-block",
-          padding: "6px 12px",
-          borderRadius: 20,
-          background: product.in_stock ? "#166534" : "#991b1b",
-          color: "white",
-          fontWeight: 600,
-          fontSize: 14,
-        }}
-      >
-        {product.in_stock ? "🟢 In Stock" : "🔴 Out of Stock"}
-      </span>
-    </div>
-
-    <button
-      disabled={loading === product.id}
-      onClick={() => toggle(product)}
-      style={{
-        background: watchlist.includes(product.id)
-          ? "#16a34a"
-          : "#2563eb",
-        color: "white",
-        border: "none",
-        padding: "12px 20px",
-        borderRadius: 8,
-        cursor: loading === product.id ? "not-allowed" : "pointer",
-        opacity: loading === product.id ? 0.7 : 1,
-        fontWeight: 600,
-        fontSize: 15,
-        minWidth: 120,
-      }}
-    >
-      {loading === product.id
-        ? "Updating..."
-        : watchlist.includes(product.id)
-        ? "✓ Watching"
-        : "Notify Me"}
-    </button>
-  </div>
-))}
+        <div>
+          Showing <strong>{filteredProducts.length}</strong> of{" "}
+          <strong>{catalog.length}</strong> watches
+        </div>
+        {watchlist.length > 0 && (
+          <div>
+            Monitoring <strong>{watchlist.length}</strong> selected watches
           </div>
-        ))
+        )}
       </div>
+
+      {/* Product Card Grid or Skeleton / Empty States */}
+      {isCatalogLoading ? (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+            gap: "20px",
+          }}
+        >
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      ) : filteredProducts.length === 0 ? (
+        <EmptyState onReset={handleResetFilters} searchQuery={search} />
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+            gap: "20px",
+          }}
+        >
+          {filteredProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              isWatched={watchlist.includes(product.id)}
+              isLoading={actionLoadingId === product.id}
+              onToggleWatch={handleToggleWatch}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

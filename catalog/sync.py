@@ -5,7 +5,7 @@ import logging
 from sqlalchemy.orm import Session
 
 from catalog.service import CatalogService
-from db.models import CatalogProduct
+from db.models import CatalogProduct, utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -53,15 +53,28 @@ class CatalogSyncService:
                 stats["new"] += 1
                 continue
 
-            changed = False
+            new_price = None
+            if product.price is not None:
+                try:
+                    new_price = float(product.price)
+                except (ValueError, TypeError):
+                    new_price = None
 
-            if existing.title != product.title:
+            changed = False
+            existing.last_seen = utcnow()
+
+            if existing.title != product.title and product.title:
                 existing.title = product.title
                 changed = True
 
-            if existing.price != product.price:
-                existing.price = product.price
-                changed = True
+            if existing.price != new_price:
+                if (
+                    existing.price is None
+                    or new_price is None
+                    or abs(existing.price - new_price) > 0.001
+                ):
+                    existing.price = new_price
+                    changed = True
 
             if existing.in_stock != product.in_stock:
                 existing.in_stock = product.in_stock

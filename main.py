@@ -36,16 +36,20 @@ async def lifespan(app: FastAPI):
         "Database URL scheme: %s", settings.sqlalchemy_database_url.split(":", 1)[0]
     )
     init_db()
-    start_scheduler()
+    if settings.enable_scheduler:
+        start_scheduler()
+    else:
+        logger.info("Scheduler disabled via ENABLE_SCHEDULER=False setting")
     yield
-    stop_scheduler()
+    if settings.enable_scheduler:
+        stop_scheduler()
     logger.info("Shutdown complete")
 
 
 app = FastAPI(title=get_settings().app_name, lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=get_settings().cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

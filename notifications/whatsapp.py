@@ -1,10 +1,9 @@
 import logging
+from typing import Any
 
 import requests
 
 from config import get_settings
-from core.change_detection import DetectedChange
-from db.models import Product, Snapshot
 from notifications.base import NotificationChannel
 from notifications.messages import format_whatsapp
 
@@ -17,9 +16,9 @@ class WhatsAppNotificationChannel(NotificationChannel):
 
     def _payload(
         self,
-        product: Product,
-        snapshot: Snapshot,
-        changes: list[DetectedChange],
+        event_or_product: Any,
+        snapshot: Any = None,
+        changes: Any = None,
     ) -> dict:
         settings = get_settings()
 
@@ -39,7 +38,7 @@ class WhatsAppNotificationChannel(NotificationChannel):
                             {
                                 "type": "text",
                                 "text": format_whatsapp(
-                                    product,
+                                    event_or_product,
                                     snapshot,
                                     changes,
                                 ),
@@ -52,9 +51,9 @@ class WhatsAppNotificationChannel(NotificationChannel):
 
     def send(
         self,
-        product: Product,
-        snapshot: Snapshot,
-        changes: list[DetectedChange],
+        event_or_product: Any,
+        snapshot: Any = None,
+        changes: Any = None,
     ) -> None:
         settings = get_settings()
 
@@ -80,7 +79,7 @@ class WhatsAppNotificationChannel(NotificationChannel):
         try:
             response = requests.post(
                 url,
-                json=self._payload(product, snapshot, changes),
+                json=self._payload(event_or_product, snapshot, changes),
                 headers=headers,
                 timeout=settings.request_timeout_seconds,
             )
@@ -88,9 +87,8 @@ class WhatsAppNotificationChannel(NotificationChannel):
             response.raise_for_status()
 
             logger.info(
-                "Sent WhatsApp notification to %s for product_id=%s",
+                "Sent WhatsApp notification to %s",
                 self.destination,
-                product.id,
             )
 
         except requests.RequestException:

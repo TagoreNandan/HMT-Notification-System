@@ -6,8 +6,11 @@ Monitor product price and stock changes on e-commerce sites and get notified whe
 
 - **Multi-user accounts** — JWT signup/login, each user tracks their own products
 - **Product monitoring** — poll tracked URLs on a configurable interval (default 15 min)
-- **Change detection** — price changes, back-in-stock, out-of-stock events with history
-- **Notifications** — per-user email (via [Resend](https://resend.com)) and/or [ntfy](https://ntfy.sh) channels; console fallback
+- **Change detection** — price changes, back-in-stock, out-of-stock, and new model events with history
+- **Notifications** — per-user rich HTML email (via Resend) and/or [ntfy](https://ntfy.sh) mobile push notifications; console fallback
+- **Idempotent Dispatch** — database-backed event logging (`NotificationLog`) prevents duplicate notifications across retries or parallel workers
+- **5-Phase Polling Pipeline** — structured 5-phase background execution (Catalog Sync, Dual-Source Product Discovery, Change Detection, Event Generation, Notification Dispatch)
+- **Dual HMT Sources** — full product discovery from both `hmtwatches.in` and `hmtwatches.store`
 - **Email verification** — prevents adding someone else's address as a notification target
 - **Abuse protection** — signup rate limits, per-user product caps, account deletion
 - **Extensible adapters** — add new sites by subclassing `SiteAdapter` (see below)
@@ -61,18 +64,26 @@ See [DEPLOY.md](DEPLOY.md) for production deployment on Railway with Postgres.
 
 ## Architecture
 
-The app is a single FastAPI process that also runs an APScheduler background job to poll all tracked products. Site-specific scraping lives in `adapters/`; everything else (auth, change detection, notifications, rate limiting) is site-agnostic.
+The app is a single FastAPI process that also runs an APScheduler background job executing a robust **5-phase polling pipeline**:
+
+1. **Catalog Synchronization** — ingest catalog changes & sync master reference models.
+2. **Product Discovery** — fetch active product listings from both `hmtwatches.in` and `hmtwatches.store` with URL deduplication.
+3. **Change Detection** — evaluate price updates, back-in-stock, out-of-stock, and new model events.
+4. **Event Generation** — construct strongly-typed `NotificationEvent` payloads with product details.
+5. **Notification Dispatch** — deliver alerts idempotently to users via registered channels (Email, ntfy).
 
 | Directory | Purpose |
 |-----------|---------|
 | `adapters/` | `SiteAdapter` implementations + domain registry |
 | `api/` | FastAPI routes (auth, products, notifications, account) |
+| `catalog/` | Catalog model sync and management |
 | `core/` | Change detection, JWT/password helpers |
-| `db/` | SQLAlchemy models and session |
-| `notifications/` | Per-user dispatcher + email, ntfy, console channels |
-| `scheduler/` | APScheduler polling jobs |
-| `scripts/` | Utility scripts (`init_db.py`) |
-| `tests/` | pytest suite |
+| `db/` | SQLAlchemy models, migration scripts, and database session |
+| `events/` | Core notification event models (`NotificationEvent`) |
+| `notifications/` | Dispatcher + email (rich HTML), ntfy (topics/backoff retry), console channels |
+| `scheduler/` | APScheduler background polling jobs |
+| `services/` | Polling pipeline orchestration (`PollingPipeline`) |
+| `tests/` | Comprehensive pytest suite & E2E production validation |
 | `fixtures/` | Offline HTML samples for adapter tests |
 
 ## Adding a new site adapter
@@ -110,6 +121,9 @@ Copy `.env.example` to `.env`. Key variables:
 | `MAX_PRODUCTS_PER_USER` | `20` | Product cap per account |
 | `RESEND_API_KEY` | *(empty)* | Resend API key for email |
 | `RESEND_FROM_EMAIL` | *(empty)* | Verified sender in Resend |
+| `NTFY_SERVER_URL` | `https://ntfy.sh` | ntfy server URL for push notifications |
+| `NTFY_MAX_RETRIES` | `3` | Retries for transient ntfy failures |
+| `NTFY_RETRY_BACKOFF_SECONDS` | `2.0` | Initial exponential backoff delay for ntfy retries |
 
 Full list in `.env.example`.
 

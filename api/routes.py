@@ -64,13 +64,55 @@ class ProductHistoryResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str = "ok"
     app: str
+    database: str
+    scheduler: str
+    last_poll: str | None = None
+    last_catalog_sync: str | None = None
+    notification_channels: list[str]
 
 
 @router.get("/health", response_model=HealthResponse)
-def health() -> HealthResponse:
+def health(db: Session = Depends(get_db)) -> HealthResponse:
+    from sqlalchemy import func
     from config import get_settings
+    from db.models import CatalogProduct, Snapshot
+    from scheduler import _scheduler
 
-    return HealthResponse(app=get_settings().app_name)
+    settings = get_settings()
+
+    try:
+        db.query(func.count(CatalogProduct.id)).scalar()
+        db_status = "healthy"
+    except Exception:
+        db_status = "unhealthy"
+
+    sched_status = "running" if (_scheduler and _scheduler.running) else "stopped"
+
+    latest_catalog_seen = db.query(func.max(CatalogProduct.last_seen)).scalar()
+    latest_snapshot_fetched = db.query(func.max(Snapshot.fetched_at)).scalar()
+
+    last_poll_str = (
+        latest_snapshot_fetched.isoformat() if latest_snapshot_fetched else None
+    )
+    last_sync_str = latest_catalog_seen.isoformat() if latest_catalog_seen else None
+
+    channels = ["console"]
+    if settings.resend_api_key and settings.resend_from_email:
+        channels.append("email")
+    if settings.ntfy_server_url:
+        channels.append("ntfy")
+
+    overall_status = "ok" if db_status == "healthy" else "degraded"
+
+    return HealthResponse(
+        status=overall_status,
+        app=settings.app_name,
+        database=db_status,
+        scheduler=sched_status,
+        last_poll=last_poll_str,
+        last_catalog_sync=last_sync_str,
+        notification_channels=channels,
+    )
 
 
 @router.post(

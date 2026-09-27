@@ -136,7 +136,12 @@ def test_dispatcher_falls_back_to_console_without_preferences(
     dispatch_product_changes(db_session, product, snapshot, actionable_changes)
 
     mock_console_cls.assert_called_once()
-    mock_console.send.assert_called_once_with(product, snapshot, actionable_changes)
+    called_arg = mock_console.send.call_args[0][0]
+    from events.models import NotificationEvent
+
+    assert isinstance(called_arg, NotificationEvent)
+    assert called_arg.product_id == product.id
+    assert called_arg.event_type == "price_change"
 
 
 @patch("notifications.ntfy.requests.post")

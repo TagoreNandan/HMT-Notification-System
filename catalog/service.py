@@ -1,15 +1,12 @@
 from __future__ import annotations
 
+import asyncio
+from sqlalchemy.orm import Session
+
 from backend.discovery.discovery_service import DiscoveryService
 from backend.discovery.registry import get_sources
 from config import get_settings
-
-
-from sqlalchemy.orm import Session
-
 from db.models import Product
-from scheduler.jobs import poll_product
-import asyncio
 
 
 class CatalogService:
@@ -24,13 +21,27 @@ class CatalogService:
         self.discovery = DiscoveryService(get_sources())
 
     def fetch_catalog(self):
-        return asyncio.run(self.discovery.discover())
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            import concurrent.futures
+
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                return pool.submit(
+                    lambda: asyncio.run(self.discovery.discover())
+                ).result()
+        else:
+            return asyncio.run(self.discovery.discover())
 
     def sync_catalog(self, db: Session) -> int:
         """Discover every watch currently listed by HMT.
         Any newly discovered watch is automatically added to the database and polled immediately.
         Returns the number of newly added watches.
         """
+        from scheduler.jobs import poll_product
 
         snapshots = self.fetch_catalog()
         added = 0

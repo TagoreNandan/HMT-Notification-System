@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me-in-production"
     jwt_access_token_expire_days: int = 7
     database_url: str = "sqlite:///./data/monitor.db"
-    poll_interval_seconds: int = 900
+    poll_interval_seconds: int = 120
     request_timeout_seconds: int = 30
     max_products_per_user: int = 20
     email_verification_expire_hours: int = 24
@@ -49,6 +49,24 @@ class Settings(BaseSettings):
     whatsapp_phone_number_id: str | None = None
     whatsapp_template_name: str = "product_update"
     whatsapp_api_version: str = "v23.0"
+
+    # Ntfy notifications
+    ntfy_server_url: str = "https://ntfy.sh"
+    ntfy_topic: str = "hmt_watches"
+    ntfy_max_retries: int = 3
+    ntfy_retry_backoff_seconds: float = 0.2
+
+    # CORS & Process Topology
+    cors_origins: str = "http://localhost:5173,http://localhost:8000,http://127.0.0.1:8000,http://127.0.0.1:5173"
+    enable_scheduler: bool = True
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        if not self.cors_origins:
+            return ["*"]
+        return [
+            origin.strip() for origin in self.cors_origins.split(",") if origin.strip()
+        ]
 
     @property
     def sqlalchemy_database_url(self) -> str:

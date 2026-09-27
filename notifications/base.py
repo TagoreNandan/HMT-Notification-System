@@ -1,11 +1,14 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
-from core.change_detection import DetectedChange
-from db.models import Product, Snapshot
+from events.models import NotificationEvent
 
 
 class NotificationChannel(ABC):
     @abstractmethod
     def send(
-        self, product: Product, snapshot: Snapshot, changes: list[DetectedChange]
+        self,
+        event_or_product: NotificationEvent | Any,
+        snapshot: Any = None,
+        changes: Any = None,
     ) -> None: ...

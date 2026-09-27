@@ -1,6 +1,7 @@
 from db.models import (
     Base,
     ChangeEvent,
+    NotificationLog,
     NotificationPreference,
     Product,
     Snapshot,
@@ -17,6 +18,7 @@ __all__ = [
     "Product",
     "Snapshot",
     "ChangeEvent",
+    "NotificationLog",
     "SessionLocal",
     "engine",
     "get_db",
