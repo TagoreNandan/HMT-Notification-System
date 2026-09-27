@@ -26,6 +26,9 @@ data/
 
 frontend/node_modules/
 frontend/dist/
+cloudflare/node_modules/
+cloudflare/.wrangler/
+
 
 .DS_Store
 .idea/
